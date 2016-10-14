@@ -1,0 +1,202 @@
+@startuml
+
+enum ItemType {
+	+ITEM,
+	+TAX,
+	+PENALTY,
+	+DISCOUNT
+}
+
+enum PaymentServiceType {
+	+CREDIT_CARD,
+	+ACH,
+	+REDIRECT
+}
+
+enum RequestType {
+	+INTERACTIVE,
+..billingprocessjob..
+	+BATCH
+}
+
+enum StatusType {
+    +SUCCESS,
+    +FAILURE,
+    +NOT_SUPPORTED
+}
+
+class Request {
+	-String id;
+	-String tenantId;
+	-String paymentServiceName;
+	-RequestType type;
+	-Contact contact;
+..only for preauth..
+	-Cart cart;
+..may only contain the gateway key..
+	-PaymentInstrument paymentInstrument;
+..denormalized values..
+	-BigDecimal amount;
+	-BigDecimal taxAmount;
+	-BigDecimal balance;
+	-String currency;
+..mandatory for refund..
+	-TransactionReference refundedTransaction;
+..mandatory for capture..
+	-TransactionReference authorizationTransaction;
+..only used for redirect..
+	-String returnUrl;
+	-String cancelUrl;
+..used for payment..
+	-Invoice invoice;
+..specific information..
+	-MetadataHolder metadata;
+--
+	+boolean isRefund();
+}
+
+class Response {
+	-String paymentServiceName;
+	-String paymentMethod;
+	-StatusType status;
+..for correlation/refund/capture..
+	-String transactionId;
+..for storage in payment instrument..
+	-String gatewayKey;
+..for storage in payment_authorization..
+	-String approvalCode;
+	-String responseMessage;
+..for redirect flow..
+	-String redirectUrl;
+	-Contact contact;
+..specific information..
+	-MetadataHolder metadata;
+}
+
+class Cart {
+	-String reference;
+	-List<Order> orders;
+}
+
+class Contact {
+	-String id;
+	-String salutation;
+	-String firstName;
+	-String lastName;
+	-String email;
+	-String phoneNumber;
+	-String faxNumber;
+	-Address address;
+	-String companyId;
+	-String companyName;
+}
+class Address {
+	-String street1;
+	-String street2;
+	-String city;
+	-String zipCode;
+	-String stateOrProvince;
+	-String countryCode;
+	-String phoneNumber;
+}
+class Invoice {
+	-String id;
+	-BigDecimal totalAmount;
+	-BigDecimal taxAmount;
+	-String currency;
+	-Date dueDate;
+	-Date creationDate;
+	-Collection<InvoiceLine> invoiceLines;
+	-Collection<Order> purchaseOrders;
+	-MetadataHolder metadata;
+}
+class InvoiceLine {
+	-String id;
+	-BigDecimal totalAmount;
+	-BigDecimal quantity;
+	-BigDecimal unitPrice;
+	-BigDecimal proratedUnitPrice;
+	-BigDecimal percentage;
+	-String description;
+	-Date periodStart;
+	-Date periodEnd;
+	-Item item;
+	-MetadataHolder metadata;
+}
+class Item {
+	-String id;
+	-ItemType type;
+	-MetadataHolder metadata;
+}
+class Order {
+	-String id;
+	-BigDecimal amount;
+	-BigDecimal taxAmount;
+	-String currency;
+	-String description;
+	-List<OrderItem> orderItems;
+	-MetadataHolder metadata;
+}
+class OrderItem {
+	-String id;
+	-BigDecimal totalAmount;
+	-BigDecimal quantity;
+	-BigDecimal unitPrice;
+	-String description;
+	-Item item;
+	-MetadataHolder metadata;
+}
+class TransactionReference {
+..original transaction to refund/capture..
+	-String transactionId;
+	-BigDecimal amount;
+	-MetadataHolder metadataHolder;
+}
+
+interface PaymentInstrument {
+	+PaymentInstrumentType getType();
+	+String getGatewayKey();
+	+boolean hasGatewayKey();
+}
+
+interface PaymentService {
+.. identification of the service ..
+	String getName();
+	PaymentServiceType getType();
+.. configuration and specific configuration object..
+	void configure(Configuration configuration);
+	Class<> getPayloadClass();
+..store and remove for api based like ach or credit card..
+	Response storePaymentInstrument(Request request);
+	Response removePaymentInstrument(Request request);
+..redirect flow system for tokenization..
+	Response initRedirectPayment(Request request);
+	Response finalizeRedirectPayment(Request request);
+..common operations for all payment gateways..
+	Response preAuthorize(Request request);
+	Response confirmPreAuthorization(Request request);
+	Response pay(Request request);
+	Response refund(Request request);
+}
+ItemType <-- Item
+Item <-- OrderItem
+Item <-- InvoiceLine
+Order *-- OrderItem : contains
+Cart *-- Order : contains 
+Cart <-- Request
+
+
+Invoice *-- InvoiceLine : contains 
+Invoice <-- Request
+TransactionReference <-- Request
+Address <-- Contact
+Contact <-- Request
+StatusType <-- Response
+RequestType <-- Request
+Request <-- PaymentService
+Response <-- PaymentService
+PaymentServiceType <-- PaymentService
+PaymentInstrumentType <-- PaymentInstrument
+PaymentInstrument <-- Request
+note right of PaymentServiceType: may be replaced\nby some feature flags
+@enduml

@@ -1,0 +1,39 @@
+@startuml
+actor ISV
+ISV -> IntegrationApi : <POST /integration/v1/events/{TOKEN}/result>
+activate IntegrationApi
+IntegrationApi -> IntegrationService : callback()
+activate IntegrationService
+IntegrationService -> IntegrationHelper : callback()
+activate IntegrationHelper
+IntegrationHelper -> SubscriptionOrderCallback : onSuccess()
+activate SubscriptionOrderCallback
+SubscriptionOrderCallback -> BillingService : generateAndPayInvoice()
+activate BillingService
+BillingService -> JBillingApi : generateAndPayInvoices()
+activate JBillingApi
+JBillingApi -> JBillingApiHelper : createInvoice()
+activate JBillingApiHelper
+JBillingApiHelper -> CreateInvoiceAspect : afterCreateInvoiceAdvice()
+activate CreateInvoiceAspect
+CreateInvoiceAspect -> JBillingImportService : importInvoice()
+activate JBillingImportService
+CreateInvoiceAspect <-- JBillingImportService : imported
+deactivate JBillingImportService
+JBillingApiHelper <-- CreateInvoiceAspect : created
+deactivate CreateInvoiceAspect
+JBillingApi <-- JBillingApiHelper : created
+deactivate JBillingApiHelper
+BillingService <-- JBillingApi : generated
+deactivate JBillingApi
+SubscriptionOrderCallback <-- BillingService : invoice generated/payed
+deactivate BillingService
+IntegrationHelper <-- SubscriptionOrderCallback : order status updated
+deactivate SubscriptionOrderCallback
+IntegrationService <-- IntegrationHelper : notified
+deactivate IntegrationHelper
+IntegrationApi <-- IntegrationService : notified
+deactivate IntegrationService
+ISV <-- IntegrationApi : 204: Subscription notified
+deactivate IntegrationApi
+@enduml
