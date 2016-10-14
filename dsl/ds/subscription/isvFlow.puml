@@ -1,6 +1,6 @@
 @startuml
-actor ISV
-ISV -> IntegrationApi : <POST /integration/v1/events/{TOKEN}/result>
+actor ISV2
+ISV2 -> IntegrationApi : <POST /integration/v1/events/{TOKEN}/result>
 activate IntegrationApi
 IntegrationApi -> IntegrationService : callback()
 activate IntegrationService
@@ -34,6 +34,6 @@ IntegrationService <-- IntegrationHelper : notified
 deactivate IntegrationHelper
 IntegrationApi <-- IntegrationService : notified
 deactivate IntegrationService
-ISV <-- IntegrationApi : 204: Subscription notified
+ISV2 <-- IntegrationApi : 204: Subscription notified
 deactivate IntegrationApi
 @enduml
